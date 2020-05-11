@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<head prefix="og: http://ogp.me/ns#">
+<meta property="og:url" content="https://weaponssearch.sinoalice.tools/" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Weapons Search" />
+<meta property="og:description" content="[SINoALICE]の武器検索が可能なユーザーサイトです。This is a user site that allows you to search weapons data for social game 'SINoALICE'." />
+<meta property="og:site_name" content="Weapons Search - SINoALICE技術部" /> 
+<meta property="og:image" content="https://weaponssearch.sinoalice.tools/baseimage/ogpimagewide0511.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:site" content="@nanaike47" />
+
+<link rel="stylesheet" href="search.css">
+
+<title>Weapons Search - SINoALICE技術部</title>
+ 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<meta charset="utf-8">
+</head>
+  <script>
+		/** メニュー **/
+		$(function() {
+			var nav = $('.nav');
+			$('li', nav)
+			.mouseover(function(e) {
+				$('ul', this).stop().slideDown('fast');
+			})
+			.mouseout(function(e) {
+				$('ul', this).stop().slideUp('fast');
+			});
+		});
+
+  var listdata = "";
+  var skilldata;
+  var attFire = "<td class='att' style='color:red;'>火</td>";
+  var attWater = "<td class='att' style='color:blue;'>水</td>";
+  var attWind = "<td class='att' style='color:green;'>風</td>";
+  var switch900 = (window.innerWidth>900)?0:-1;
+  var switch660 = (window.innerWidth>660)?0:-1;
+  var switch460 = (window.innerWidth>460)?0:-1;
+  var switchAry = [0,0,0,switch660,switch900,0,-1,switch660,switch660,-1,switch660,switch660,switch660,switch460,switch660,switch900,0,switch900];
+  var defaultHelpText = "読込中...";
+
+    //二次元配列のソートメソッド
+    function xsort(arrs, col, order){
+      //二次元配列のソート col:並べ替えの対象となる列 order:1=昇順、-1=降順
+      
+      //昇順
+      if(order == "-1"){
+        arrs.sort(function(a, b){
+	      if (a[col] > b[col]) return -1;
+	      if (a[col] < b[col]) return 1;
+	      return 0;
+        });
+      //降順
+      } else {
+        arrs.sort(function(a, b){
+	      if (a[col] > b[col]) return 1;
+	      if (a[col] < b[col]) return -1;
+	      return 0;
+        });
+      }
+
+      return arrs;
+    }
+
+function dispPopup() {
+    if( $('#popup').is(':visible') ){
+        $('#popup').hide();
+    } else {
+        $('#popup').show();
+    }
+}
+function clearPopup() {
+  $(':checkbox:checked').each(function() {
+    if( $(this).attr('id').match(/(type|att|cost)Cell\d*/) ){
+      $(this).prop('checked',false);
+    }
+  });
+  $('#searchword').val("");
+  $('#searchdate').val("");
+  $('#searchadddate').val("");
+  $('#searchmaxdate').val("");
+}
+
+//popup範囲外クリックイベント    
+$(document).on('click touchend', function(e) {
+  //セレクタの場合は何もしない
+  if($(e.target).closest('#popuptext').length) {
+    return;
+  }
+  
+  //画面外は閉じる
+  if(!$(e.target).closest('#popup').length || $(e.target).closest('#popup_close').length) {
+    if( $('#popup').is(':visible') ){
+//    if( $('#dispselector').prop('checked') ){
+//      $('#dispselector').prop('checked',false);
+      addElement(e);
+      $('#popup').hide();
+    }
+  }
+});
+
+function getJsonGAS() {
+
+	$.ajax({
+		type: 'GET',
+		url: 'https://script.google.com/macros/s/AKfycby0_uQ6iu9tuWckhDA5Me_rbEMl_ukAbphjw1lYIXH73qBV7c6tg35926Z3SXhCXj0zZA/exec',
+		dataType: 'jsonp',
+		jsonpCallback: 'jsondata',
+		success: function(json){
+			
+			var arydata = [];
+			json.forEach(function( obj ) {
+			     arydata.push( Object.keys(obj).map(function (key) {return obj[key]})
+			 );
+			});
+
+			listdata = arydata;
+			
+			setDropDown(listdata);
+			setDropDownAddDate(listdata);
+			
+			//初期表示
+			document.getElementById("dispCnt").innerHTML = '<font color=blue>検索可</font>';
+			$('#loading_css').remove();
+
+			//if( !$('#dispselector').prop('checked') ){
+			//	$('#dispselector').prop('checked',true);
+			//}
+			$('#popup').show();
+		}
+	});
+}
+function setDropDown(data) {
+  var dateArray = [];
+  var cnt = 0;
+  //更新日ドロップダウン設定
+  for(var i=0; i<data.length ; i++){
+    if( data[i][40] != "" ){
+      var dd = new Date(data[i][40]);
+      var str = getDateString(dd);
+
+      var flg = true;
+      for(var j=0; j<dateArray.length ; j++){
+        if( dateArray[j] == str ){
+          flg = false;
+          break;
+        }
+      }
+      if( flg ){
+        dateArray[cnt++] = str;
+      }
+    }
+  }
+  //並替
+  dateArray.sort();
+
+  //設定
+  for(var i= dateArray.length-1; i > -1 ; i--){  
+     $('#searchdate').append($('<option>').html( dateArray[i] ).val( dateArray[i] ));
+  }
+}
+function setDropDownAddDate(data) {
+  var dateArray = [];
+  var titleArray = [];
+  var cnt = 0;
+  //更新日ドロップダウン設定
+  for(var i=0; i<data.length ; i++){
+    if( data[i][38] != "" ){
+      var dd = new Date(data[i][38]);
+      var str = getDateString(dd);
+      var strTitle = data[i][39].replace(/イベント|販売|配布/g,'');
+      
+      //上書きしてしまう。
+      data[i][38] = str;
+
+      var flg = true;
+      for(var j=0; j<dateArray.length ; j++){
+        if( dateArray[j] == str ){
+          flg = false;
+          if(titleArray[j] != "" && titleArray[j].indexOf(strTitle) == -1 ){
+            titleArray[j] += "," + strTitle;
+          }
+          
+          break;
+        }
+      }
+      if( flg ){
+        dateArray[cnt] = str;
+        titleArray[cnt++] = str + ":" + strTitle;
+      }
+    }
+  }
+  //並替
+  dateArray.sort();
+  titleArray.sort();
+
+  //設定
+  for(var i= dateArray.length-1; i > -1 ; i--){  
+     $('#searchadddate').append($('<option>').html( titleArray[i] ).val( dateArray[i] ));
+     $('#searchmaxdate').append($('<option>').html( dateArray[i] ).val( dateArray[i] ));
+  }
+}
+
+function getDateString( dt ){
+  if( dt ){
+    var y = dt.getFullYear();
+    var m = ("00" + (dt.getMonth()+1)).slice(-2);
+    var d = ("00" + dt.getDate()).slice(-2);
+    var result = y + "/" + m + "/" + d;
+    return result;
+  } else {
+    return;
+  }
+}
+
+function getSkillText() {
+	$.ajax({
+		type: 'GET',
+		url: 'https://script.google.com/macros/s/AKfycbx-6EeXpzqXdmz9bVcsjyfISn2WpfqsZhhaR7rxjD1U8_UaFcJiq62OpYTEzK4PGqhqug/exec',
+		dataType: 'jsonp',
+		jsonpCallback: 'jsondata',
+		success: function(json){
+			skilldata = json;
+		}
+	});
+}
+function getSkillTextJson(value){
+	var matchdata = skilldata.filter(function(e,index){
+		if(e.skillname == value ) return true;
+	});
+	if(matchdata.length > 0){
+		return matchdata[0].skilltext;
+	} else {
+		return '';
+	}
+}
+function setToolTipText() {
+	$('div #tooltip1').each(function(i, elem) {
+		if( $(elem).find('div').text() == defaultHelpText ){
+			var helptext = getSkillTextJson($(elem).find('p').text());
+			if(helptext){
+				$(elem).find('div').text(helptext);
+				$(elem).find('p').addClass('linkimage');
+			}
+		}
+	});
+}
+      //動的にリスト情報を表示
+      function addElement(select) {
+
+            var objBody  = document.getElementById("tableResultBody");
+            var division = objBody.getElementsByTagName('tr');
+
+            if(division.length > 0){
+                //子要素を全て削除
+                while (objBody.firstChild) objBody.removeChild(objBody.firstChild);
+            }
+
+            //ソートを実施
+            var listdatadisp = listdata; 
+            var strSortCol = document.getElementById('sortCol').value;
+            var strSortArrow = document.getElementById('sortArrow').value;
+            
+            if( strSortCol != null && strSortCol !="" && listdata != null && listdata.length > 0){
+                listdata = xsort(listdata,strSortCol,strSortArrow);
+            }
+
+            //検索条件取得
+            var listType = getTypeText();
+            var listAtt = getAttText();
+            var listCost = getCostText();
+            var strSearchWord = document.getElementById('searchword').value;
+            var strUpdateDate = document.getElementById('searchdate').value;
+            var strAddDate = document.getElementById('searchadddate').value;
+            var strMaxDate = document.getElementById('searchmaxdate').value;
+            
+            //簡易Validateion
+            if( strMaxDate != "" && ! /^20/.test(strMaxDate) ){
+              strMaxDate = "";
+            }
+
+            var cnt = 0;
+            
+			//無条件のときは検索しない
+            if( listType != "" || listAtt != "" || strSearchWord != "" || listCost != "" || strUpdateDate != "" || strAddDate != ""){
+
+            //該当行を探すためのforループ。
+            for(var i=0;i<listdata.length; i++){
+            
+                //武器名が空白ならスキップ
+                if( listdata[i][0] == "") { continue; }
+
+                //合致条件変更
+                var flg = true;
+                //1.武器種
+                if(flg && listType != "" && listType.indexOf(listdata[i][4]) == -1 ) {
+                    flg = false;
+                }
+
+                //2.属性
+                if(flg && listAtt != "" && listAtt.indexOf(listdata[i][5]) == -1 ) {
+                    flg = false;
+                }
+
+                //3.コスト
+                if(flg && listCost != "" && listCost.indexOf(listdata[i][21]) == -1 ) {
+                    flg = false;
+                }
+                
+                //4.文字検索
+                var grep = new RegExp(strSearchWord) ;
+                if( flg && strSearchWord != "" && ! grep.test(listdata[i][0]+listdata[i][16]+listdata[i][18]+listdata[i][30]) ){
+                    flg = false;
+                }
+
+                //5.更新日検索
+                if( flg && strUpdateDate != "" ) {
+                  if( listdata[i][40] == "" ){
+                      flg = false;
+                  } else {
+                    var chkdate = new Date(listdata[i][40]);
+                    if( strUpdateDate != getDateString(chkdate) ) {
+                      flg = false;
+                    }
+                  }
+                }
+                //6.追加日検索
+                if( flg && strAddDate != "" ) {
+                  if( listdata[i][38] == "" ){
+                      flg = false;
+                  } else {
+//                    var chkdate = new Date(listdata[i][38]);
+//                    if( strMaxDate == "" ) {
+//                      if( strAddDate != getDateString(chkdate) ) {
+//                        flg = false;
+//                      }
+//                    } else if( strMaxDate < strAddDate ) {
+//                      flg = false;
+//                    } else {
+//                      if( strAddDate > getDateString(chkdate) || getDateString(chkdate) > strMaxDate ){
+//                        flg = false;
+//                      }
+//                    }
+                    if( strMaxDate == "" ) {
+                      if( strAddDate != listdata[i][38] ) {
+                        flg = false;
+                      }
+                    } else if( strMaxDate < strAddDate ) {
+                      flg = false;
+                    } else {
+                      if( strAddDate > listdata[i][38] || listdata[i][38] > strMaxDate ){
+                        flg = false;
+                      }
+                    }
+                  }
+                }
+                
+                //end.条件に合わない場合は次の行へ。
+                if( flg == false ) { continue; } 
+
+                var element = document.createElement('tr'); 
+                element.class = "information"; 
+
+                var intext =  "";                
+                //画像アイコン
+                if(listdata[i][3] != ""){
+                    var id_text = ('0000' + listdata[i][3]).slice( -4 );
+                    intext += "<td class='weapon_img'><img class='weapon_img_body' src='https://www.sinoalice.tools/sinoalice-images/CardS" + id_text + ".png' alt='取得中'loading='lazy'></td>";
+                } else if(listdata[i][2] != ""){
+                    var id_text = ('0000' + listdata[i][3]).slice( -4 );
+                    intext += "<td class='weapon_img'><img class='weapon_img_main' src='https://www.sinoalice.tools/sinoalice-images/CardS" + id_text + ".png' alt='取得中' loading='lazy'></td>";
+                } else {
+                    intext += "<td class='weapon_img'></td>";
+                }
+
+                //外部リンク
+                if(listdata[i][1] != ""){
+                    intext += "<th class='name'><a href='https://sinoalice.game-db.tw/weapons/" + listdata[i][0] + "' target='_sinodatabase'>"+ listdata[i][0] +"</a></th>";
+                } else {
+                    intext += "<th class='name'>" + listdata[i][0] + "</th>";
+                }
+                
+                if( listdata[i][4] == "楽器" ){
+                  intext += "<td class='type'><img class='small_icon' src='baseimage/weapon_icon_001.png'>";
+                } else if( listdata[i][4] == "魔書" ){
+                  intext += "<td class='type'><img class='small_icon' src='baseimage/weapon_icon_002.png'>";
+                } else if( listdata[i][4] == "魔具" ){
+                  intext += "<td class='type'><img class='small_icon' src='baseimage/weapon_icon_003.png'>";
+                } else if( listdata[i][4] == "祈祷" ){
+                  intext += "<td class='type'><img class='small_icon' src='baseimage/weapon_icon_004.png'>";
+                } else if( listdata[i][4] == "刀剣" ){
+                  intext += "<td class='type'><img class='small_icon' src='baseimage/weapon_icon_005.png'>";
+                } else if( listdata[i][4] == "打撃" ){
+                  intext += "<td class='type'><img class='small_icon' src='baseimage/weapon_icon_006.png'>";
+                } else if( listdata[i][4] == "射出" ){
+                  intext += "<td class='type'><img class='small_icon' src='baseimage/weapon_icon_007.png'>";
+                } else if( listdata[i][4] == "長柄" ){
+                  intext += "<td class='type'><img class='small_icon' src='baseimage/weapon_icon_008.png'>";
+                } else {
+                  intext += "<td class='type'>" + listdata[i][34] + "</td>";
+                }
+                
+                if( listdata[i][5] == "火" ){
+                  intext += "<img class='small_icon' src='baseimage/attribute_001.png'>";
+                } else if( listdata[i][5] == "水" ){
+                  intext += "<img class='small_icon' src='baseimage/attribute_002.png'>";
+                } else if( listdata[i][5] == "風" ){
+                  intext += "<img class='small_icon' src='baseimage/attribute_003.png'>";
+                }
+
+                if( listdata[i][30] == "" ){
+                  intext += "</td>";
+                } else {
+                  intext += "<img class='small_icon' src='baseimage/limitbreak_icon.png'></td>";
+                }
+
+                if( listdata[i][5] == "火" ){
+                  intext += attFire;
+                } else if( listdata[i][5] == "水" ){
+                  intext += attWater;
+                } else if( listdata[i][5] == "風" ){
+                  intext += attWind;
+                } else {
+                  intext += listdata[i][5];
+                }
+                
+                intext = intext + "<td class='cost'>" + listdata[i][21] + "</td>" +
+                //intext = intext + "<td class='cost'><img src='https://sinoalice.game-db.tw/images/thumb/card_CardS" + listdata[i][3] + ".png'></td>" +
+                "<td class='power'>" + listdata[i][33] + "</td>" +
+                "<td class='atkplus'>" + listdata[i][36] + "</td>" +
+                "<td class='patk'>" + listdata[i][8] + "</td>" +
+                "<td class='matk'>" + listdata[i][9] + "</td>" +
+                "<td class='defplus'>" + listdata[i][37] + "</td>" +
+                "<td class='pdef'>" + listdata[i][10] + "</td>" +
+                "<td class='mdef'>" + listdata[i][11] + "</td>" +
+                "<td class='questskill' style='display:none;'><div class='tooltip1' id='tooltip1'><p>" + listdata[i][13] + "</p><div class='desp1'>"+defaultHelpText+"</div></div></td>" +
+                "<td class='gvgskill'><div class='tooltip1' id='tooltip1'><p>" + listdata[i][16] + "</p><div class='desp1'>" +defaultHelpText+"</div></div></td>" +
+                "<td class='gvgsupport' style='display:none;'><div class='tooltip1' id='tooltip1'><p>" + listdata[i][18] + "</p><div class='desp1'>"+defaultHelpText+"</div></div></td>" +
+                "<td class='limitbreak' style='display:none;'>" + listdata[i][30] + "</td>"+
+                "<td class='rate' style='display:none;'>" + listdata[i][35] + "</td>"+
+                "<td class='adddate' style='display:none;'>" + listdata[i][38] +":"+ listdata[i][39] + "</td>";
+                
+                element.innerHTML = intext;
+                objBody.appendChild(element);
+                cnt++;
+            }
+            }
+            document.getElementById("dispCnt").innerHTML = cnt + "件";;
+            
+            //表示非表示切替
+            dispReset();
+            
+            //非同期ツールチップ設定
+            setToolTipText();
+      }
+      function preventFormSubmit() {
+        
+        getJsonGAS();
+
+        //表示項目
+        checkInit();
+        dispReset();
+        
+        //非同期ツールチップ更新
+        getSkillText();
+      }
+
+    window.addEventListener('load', preventFormSubmit);
+
+    function changeCell(cnt){
+      switchAry[12] = (cnt!=12&&cnt!=-1)?-1:0;
+      switchAry[13] = (cnt!=13&&cnt!=-1)?-1:0;
+      switchAry[14] = (cnt!=14&&cnt!=-1)?-1:0;
+      switchAry[15] = (cnt!=15&&cnt!=-1)?-1:0;
+      switchAry[16] = (cnt!=16)?-1:0;
+
+      document.getElementById("dispCell12").checked = (cnt!=12&&cnt!=-1)?false:true;
+      document.getElementById("dispCell13").checked = (cnt!=13&&cnt!=-1)?false:true;
+      document.getElementById("dispCell14").checked = (cnt!=14&&cnt!=-1)?false:true;
+      document.getElementById("dispCell15").checked = (cnt!=15&&cnt!=-1)?false:true;
+      document.getElementById("dispCell16").checked = (cnt!=16)?false:true;
+      
+      dispReset();
+
+      var ex = document.getElementsByClassName("expand");
+      for(var i=0;i<ex.length;i++){
+        ex[i].style.display = (cnt==-1)?'none':'';
+      }
+    }
+    function switchCell(cnt){
+      var chk = document.getElementById("dispCell"+cnt);
+      switchAry[cnt] = (chk.checked)?'0':'-1';
+
+      if(cnt==0){
+        document.getElementById("typeHead").classList.toggle("toggleType");
+      }
+      
+      dispReset();
+    }
+    function dispReset(){
+      TABLE = document.getElementById("tableResult");
+      for(var i=0;TABLE.rows[i];i++) {
+        if(TABLE.rows[i].cells.length >= switchAry.length ){
+          for(var j=0;j<switchAry.length;j++){
+            TABLE.rows[i].cells[j].style.display = (switchAry[j]==0)?'':'none';
+          }
+        }
+      }
+    }
+    function checkInit(){
+      for(var j=0;j<switchAry.length;j++){
+        if(switchAry[j]==0){
+          var chk = document.getElementById("dispCell"+j);
+          if(chk) chk.checked = true;
+        }
+      }
+    }
+    function sortCell(cnt){
+      var sortCol = document.getElementById('sortCol');
+      var sortArrow = document.getElementById('sortArrow');
+      var idx = sortCol.selectedIndex;
+      var ida = sortArrow.selectedIndex;
+      
+      //▼▲を消す
+      var hd = document.getElementsByClassName("sortheader");
+      for(var i=0;i<hd.length;i++){
+          hd[i].innerHTML = hd[i].innerHTML.replace(/▼|▲/,'');
+      }  
+
+      if(cnt < 10 && cnt > -1){
+        //値の設定
+        sortArrow.selectedIndex = (ida==1)?0:1;
+        sortCol.selectedIndex = cnt + 1;
+        
+        var text = (ida==1)?"▼":"▲" ;        
+        hd[cnt].innerHTML = hd[cnt].innerHTML + text;
+      }
+
+      addElement(sortCol);
+    }
+    function getTypeText(){
+      var ret = "";
+      if(document.getElementById("typeCell1").checked) ret = ret + ",楽器";
+      if(document.getElementById("typeCell2").checked) ret = ret + ",魔書";
+      if(document.getElementById("typeCell3").checked) ret = ret + ",魔具";
+      if(document.getElementById("typeCell4").checked) ret = ret + ",祈祷";
+      if(document.getElementById("typeCell5").checked) ret = ret + ",刀剣";
+      if(document.getElementById("typeCell6").checked) ret = ret + ",打撃";
+      if(document.getElementById("typeCell7").checked) ret = ret + ",射出";
+      if(document.getElementById("typeCell8").checked) ret = ret + ",長柄";
+      return ret;
+    }
+    function getAttText(){
+      var ret = "";
+      if(document.getElementById("attCell1").checked) ret = ret + ",火";
+      if(document.getElementById("attCell2").checked) ret = ret + ",水";
+      if(document.getElementById("attCell3").checked) ret = ret + ",風";      
+      return ret;
+    }
+    function getCostText(){
+      var ret = "";
+      if(document.getElementById("costCell1").checked) ret = ret + "15,16,17";
+      if(document.getElementById("costCell2").checked) ret = ret + ",18";
+      if(document.getElementById("costCell3").checked) ret = ret + ",19";
+      if(document.getElementById("costCell4").checked) ret = ret + ",20";
+      if(document.getElementById("costCell5").checked) ret = ret + ",21";
+      if(document.getElementById("costCell6").checked) ret = ret + ",22,23,24,25,99";
+      return ret;
+    }
+
+  </script>
+
+<body>
+<div class="header">
+	<div class="menuBg">
+		<table class="header_table">
+			<tbody><tr>
+				<td class="menu_mainTitle">
+					Weapons Search
+				</td>
+				<td class="menu_subTitle">
+				</td>
+			</tr>
+		</tbody></table>
+		<ul class="nav">
+			<li>
+				メニュー
+				<ul style="">
+					<li><label for="trigger" class="open_btn">ヘルプ</label></li>
+					<li><label for="trigger2" class="open_btn2">Copyright</label></li>
+					<li><span onclick="location.href='https://www.sinoalice.tools/';">技術部Topへ</span></li>
+				</ul>
+			</li>
+		</ul>
+	</div>
+</div>
+<div class="popup_wrap">
+<input id="trigger" type="checkbox">
+	<div class="popup_overlay">
+		<label for="trigger" class="popup_trigger"></label>
+		<div class="popup_content">
+			<label for="trigger" class="close_btn">&nbsp;×&nbsp;</label>
+<p>「絞込と表示項目」を押すことにより、絞込条件と表示する項目を自由にカスタマイズできます。
+<p>総合値などステータス数値はLv120基準で、タイトル押下するとソートできます。同じ項目を再度押すことで「▲昇順／▼降順」が切替ります。</p>
+<p>スマホなど表示領域が狭い端末向けに「補助スキル♻」など♻マークの付いた列は、ソートではなく表示テキストの切替になっています。</p>
+<p>「武器倍率」列は、武器が持つベース出力倍率(slv1出力)を表示しています。楽器本の勇者/腐蝕など両面スキルの場合は片方の出力です。序曲/生なら前半15分、終曲/死なら後半5分の出力で、非該当時間は約2/3になります。</p>
+<p>検索ボックスは、「武器名」「コロシアムスキル」「補助スキル」「限凸スキル」のすべての文字から正規表現で検索できます。</p>
+<p>あくまでユーザーによる調査であり、公式の発表データではありません。ご理解の上利用ください。</p>
+		</div>
+	</div>
+</div>
+
+<div class="popup_wrap2">
+<input id="trigger2" type="checkbox">
+	<div class="popup_overlay2">
+		<label for="trigger2" class="popup_trigger2"></label>
+		<div class="popup_content2">
+			<label for="trigger2" class="close_btn2">&nbsp;×&nbsp;</label>
+<p>当サイトはSINoALICEの非公式ユーザサイトです。ゲーム内容に関わるコンテンツの著作権は[Pokelabo Inc./SQUARE ENIX CO., LTD.]に帰属します。</p>
+<p>©2020 "Weapons Search" is produced by "SINoALICE User's Engineering Department." and Asterisk@nanaike47, All rights rserved.</p>
+<p>SINoALICE's data(include weapon's name and images, etc) is belongs to Pokelabo Inc./SQUARE ENIX CO.,LTD. </p>
+		</div>
+	</div>
+</div>
+
+<div id="main_panel">
+  <table id="tableResult" class="tableResult">
+    <thead id="tableResultHead">
+    <tr class="inputrow"><th colspan="18" class="inputarea">
+    <div id="information">
+<label onclick="dispPopup();">
+  <span class="popuptext" id="popuptext">&nbsp;■絞込と表示項目■&nbsp;</span>
+</label>
+<div id="popup">
+  <label>▼絞込(武器種)</label>
+  <label onclick='clearPopup();' style='margin-left: 110px;'><span class="popuptext">&nbsp;◇消&nbsp;</span></label>
+  <label style='margin-left: 5px;'><span class="popuptext" id='popup_close'>&nbsp;✖閉&nbsp;</span></label>
+  <br><br><br>
+  <input type="checkbox" id="typeCell1" /><label for="typeCell1">楽器</label>
+  <input type="checkbox" id="typeCell2" /><label for="typeCell2">魔書</label>
+  <input type="checkbox" id="typeCell3" /><label for="typeCell3">魔具</label>
+  <input type="checkbox" id="typeCell4" /><label for="typeCell4">祈祷</label>
+  <br><br><br>
+  <input type="checkbox" id="typeCell5" /><label for="typeCell5">刀剣</label>
+  <input type="checkbox" id="typeCell6" /><label for="typeCell6">打撃</label>
+  <input type="checkbox" id="typeCell7" /><label for="typeCell7">射出</label>
+  <input type="checkbox" id="typeCell8" /><label for="typeCell8">長柄</label>
+  <br><br><br>
+  <label>▼絞込(属性)</label><label style="margin-left:40px;">▼検索</label><label style="margin-left:45px;">▼更新日</label>
+  <br><br><br>
+  <input type="checkbox" id="attCell1" /><label for="attCell1">火</label>
+  <input type="checkbox" id="attCell2" /><label for="attCell2">水</label>
+  <input type="checkbox" id="attCell3" /><label for="attCell3">風</label>
+<div class="cp_iptxt" >
+<input type="text" id="searchword" placeholder="武器スキル名" autocomplete="off">
+</div>
+<div class="cp_ipselect cp_sl03">
+<select id="searchdate" name="searchdate">
+  <option value="" selected>(限凸追加日)</option>
+</select>
+</div>
+  <br><br><br>
+  <label>▼絞込(武器実装日)</label><label style="margin-left:85px;">(範囲指定)</label><br><br><br>
+<div class="cp_ipselect cp_sl03 cp_ipselect2nd">
+<select id="searchadddate" name="searchadddate">
+  <option value="" selected>(武器実装日)</option>
+</select>
+<label>～</label>
+</div>
+<div class="cp_ipselect cp_sl03 cp_ipselect2nd" style="left:230px;width:85px;" >
+<select id="searchmaxdate" name="searchmaxdate" style="width:85px;">
+  <option value="" selected>(オプション)</option>
+</select>
+</div>
+  <br><br><br>
+  <label>▼絞込(コスト)</label><br><br><br>
+  <input type="checkbox" id="costCell1" /><label for="costCell1">17-</label>
+  <input type="checkbox" id="costCell2" /><label for="costCell2">18</label>
+  <input type="checkbox" id="costCell3" /><label for="costCell3">19</label>
+  <input type="checkbox" id="costCell4" /><label for="costCell4">20</label>
+  <input type="checkbox" id="costCell5" /><label for="costCell5">21</label>
+  <input type="checkbox" id="costCell6" /><label for="costCell6">22+</label>
+  <br><br><br><br>
+
+  <label class="dispselect">▽表示項目</label>
+  <br><br><br>
+  <input type="checkbox" id="dispCell0" onclick='switchCell(0);'/><label for="dispCell0" class="dispselect">画像&nbsp;</label>
+  <input type="checkbox" id="dispCell2" onclick='switchCell(2);'/><label for="dispCell2" class="dispselect">種</label>
+  <input type="checkbox" id="dispCell3" onclick='switchCell(3);'/><label for="dispCell3" class="dispselect">属&nbsp;</label>
+  <input type="checkbox" id="dispCell4" onclick='switchCell(4);'/><label for="dispCell4" class="dispselect">cost&nbsp;</label>
+  <input type="checkbox" id="dispCell5" onclick='switchCell(5);'/><label for="dispCell5" class="dispselect"><p class='pluscolor'>総合値</p></label>
+  <br><br><br>
+  <input type="checkbox" id="dispCell6" onclick='switchCell(6);'/><label for="dispCell6" class="dispselect"><p class='pluscolor'>総攻</p>[</label>
+  <input type="checkbox" id="dispCell7" onclick='switchCell(7);'/><label for="dispCell7" class="dispselect">物</label>
+  <input type="checkbox" id="dispCell8" onclick='switchCell(8);'/><label for="dispCell8" class="dispselect">魔]</label>
+  <input type="checkbox" id="dispCell9" onclick='switchCell(9);'/><label for="dispCell9" class="dispselect"><p class='pluscolor'>総防</p>[</label>
+  <input type="checkbox" id="dispCell10" onclick='switchCell(10);'/><label for="dispCell10" class="dispselect">物</label>
+  <input type="checkbox" id="dispCell11" onclick='switchCell(11);'/><label for="dispCell11" class="dispselect">魔]</label>
+  <br><br><br>
+  <input type="checkbox" id="dispCell12" onclick='switchCell(12);'/><label for="dispCell12" class="dispselect">モノ</label>
+  <input type="checkbox" id="dispCell13" onclick='switchCell(13);'/><label for="dispCell13" class="dispselect">コロ</label>
+  <input type="checkbox" id="dispCell14" onclick='switchCell(14);'/><label for="dispCell14" class="dispselect">補助</label>
+  <input type="checkbox" id="dispCell15" onclick='switchCell(15);'/><label for="dispCell15" class="dispselect">凸</label>
+  <input type="checkbox" id="dispCell16" onclick='switchCell(16);'/><label for="dispCell16" class="dispselect">倍</label>
+  <input type="checkbox" id="dispCell17" onclick='switchCell(17);'/><label for="dispCell17" class="dispselect">日</label>
+</div>
+
+        <span id="dispCnt"><font color='#8f0000'>読込中...</font></span>
+        <select id="sortCol" name="sortCol" onchange="sortCell(-1);" class="sortCol"><br>
+        <option value="">▽ソート</option>
+        <option value="0">武器名</option>
+        <option value="21">コスト</option>
+        <option value="33">総合値</option>
+        <option value="36">物攻＋魔攻</option>
+        <option value="8">物理攻撃</option>
+        <option value="9">魔法攻撃</option>
+        <option value="37">物防＋魔防</option>
+        <option value="10">物理防御</option>
+        <option value="11">魔法防御</option>
+        <option value="38">武器実装日</option>
+        <option value="13">モノスキル</option>
+        <option value="16">コロスキル</option>
+        <option value="18">補助スキル</option>
+        <option value="30">限凸スキル</option>
+        <option value="34">武器倍率</option>
+        </select>
+        <select id="sortArrow" name="sortArrow" onchange="sortCell(-1);" class="sortArrow"><br>
+        <option value="-1">降順</option>
+        <option value="1">昇順</option>
+        </select>
+
+    </div>
+    </th></tr>
+        <tr class='tabletitle'>
+          <th class='weapon_img'>画像</th>
+          <th class='name'><span class='sortheader' onclick='sortCell(0);'>武器名</span></th>
+          <th class='type toggleType' id='typeHead'>種</th>
+          <th class='att' style='display:none;'>属</th>
+          <th class='cost' style='display:none;'><span class='sortheader' onclick='sortCell(1);'>cost</span></th>
+          <th class='power'><span class='sortheader' onclick='sortCell(2);'><span class='pluscolor'>総合</span></span></th>
+          <th class='mdef' style='display:none;'><span class='sortheader' onclick='sortCell(3);'><p class='pluscolor'>総</p>攻</span></th>
+          <th class='patk' style='display:none;'><span class='sortheader' onclick='sortCell(4);'>物攻</span></th>
+          <th class='matk' style='display:none;'><span class='sortheader' onclick='sortCell(5);'>魔攻</span></th>
+          <th class='mdef' style='display:none;'><span class='sortheader' onclick='sortCell(6);'><p class='pluscolor'>総</p>防</span></th>
+          <th class='pdef' style='display:none;'><span class='sortheader' onclick='sortCell(7);'>物防</span></th>
+          <th class='mdef' style='display:none;'><span class='sortheader' onclick='sortCell(8);'>魔防</span></th>
+          <th class='questskill' id='col_q' style='display:none;'><span class='switch' onclick='changeCell(13);'>モノスキル♻</span><span class='expand' onclick='changeCell(-1);'>&nbsp;＋</span></th>
+          <th class='gvgskill' id='col_m' style='display:none;'><span class='switch' onclick='changeCell(14);'>コロスキル♻</span><span class='expand' onclick='changeCell(-1);'>&nbsp;＋</span></th>
+          <th class='gvgsupport' id='col_s' style='display:none;'><span class='switch' onclick='changeCell(15);'>補助スキル♻</span><span  class='expand' onclick='changeCell(-1);'>&nbsp;＋</span></th>
+          <th class='limitbreak' id='col_l' style='display:none;'><span class='switch' onclick='changeCell(16);'>限凸スキル♻</span><span class='expand' onclick='changeCell(-1);'>&nbsp;＋</span></th>
+          <th class='rate' id='col_r'><span class='switch' onclick='changeCell(12);'>武器倍率♻</span></th>
+          <th class='adddate' style='display:none;'><span class='sortheader' onclick='sortCell(9);'>武器実装日</span></th>
+        </tr>
+    </thead>
+    <tbody id="tableResultBody"></tbody>
+  </table>
+
+<div class="loading_css" id="loading_css">
+  <div class="balls-guruguru">
+    <span class="ball ball-1"></span>
+    <span class="ball ball-2"></span>
+    <span class="ball ball-3"></span>
+    <span class="ball ball-4"></span>
+    <span class="ball ball-5"></span>
+    <span class="ball ball-6"></span>
+    <span class="ball ball-7"></span>
+    <span class="ball ball-8"></span>
+    <div class="text-guruguru">Loading...</div>
+  </div>
+</div>
+</div>
+
+<div class="footer">
+	<table class="footer_table">
+		<tr>
+			<td style="text-align: left;">LastUpdated:2020/05/11</td>
+			<td style="text-align: right;">CreatedBy&nbsp;*@nanaike47</td>
+		</tr>
+	</table>
+</div>
+
+</body>
+</html>
