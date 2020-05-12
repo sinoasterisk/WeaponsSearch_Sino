@@ -80,6 +80,9 @@ function clearPopup() {
       $(this).prop('checked',false);
     }
   });
+  $('#checkCombo').val("");
+  $('#checkSupport').val("");
+
   $('#searchword').val("");
   $('#searchdate').val("");
   $('#searchadddate').val("");
@@ -272,6 +275,8 @@ function setToolTipText() {
 
             //検索条件取得
             var listType = getTypeText();
+            var checkCombo = document.getElementById('typeCombo').checked?1:'';
+            var checkSupport = document.getElementById('typeSupport').checked?1:'';
             var listAtt = getAttText();
             var listCost = getCostText();
             var strSearchWord = document.getElementById('searchword').value;
@@ -287,7 +292,7 @@ function setToolTipText() {
             var cnt = 0;
             
 			//無条件のときは検索しない
-            if( listType != "" || listAtt != "" || strSearchWord != "" || listCost != "" || strUpdateDate != "" || strAddDate != ""){
+            if( listType != "" || listAtt != "" || strSearchWord != "" || listCost != "" || strUpdateDate != "" || strAddDate != "" || checkCombo != "" || checkSupport != "" ){
 
             //該当行を探すためのforループ。
             for(var i=0;i<listdata.length; i++){
@@ -334,18 +339,6 @@ function setToolTipText() {
                   if( listdata[i][38] == "" ){
                       flg = false;
                   } else {
-//                    var chkdate = new Date(listdata[i][38]);
-//                    if( strMaxDate == "" ) {
-//                      if( strAddDate != getDateString(chkdate) ) {
-//                        flg = false;
-//                      }
-//                    } else if( strMaxDate < strAddDate ) {
-//                      flg = false;
-//                    } else {
-//                      if( strAddDate > getDateString(chkdate) || getDateString(chkdate) > strMaxDate ){
-//                        flg = false;
-//                      }
-//                    }
                     if( strMaxDate == "" ) {
                       if( strAddDate != listdata[i][38] ) {
                         flg = false;
@@ -357,6 +350,18 @@ function setToolTipText() {
                         flg = false;
                       }
                     }
+                  }
+                }
+                //7.コンボ
+                if( checkCombo != "" ){
+                  if( listdata[i][35] == "" || listdata[i][35].indexOf("コンボ") == -1 ){
+                    flg = false;
+                  }
+                }
+                //7.勇猛支援
+                if( checkSupport != "" ){
+                  if( listdata[i][18] == "" || ! /勇猛果敢|補助支援|回復支援|双翼の恩寵|起死回生/.test(listdata[i][18]) ){
+                    flg = false;
                   }
                 }
                 
@@ -441,7 +446,7 @@ function setToolTipText() {
                 "<td class='questskill' style='display:none;'><div class='tooltip1' id='tooltip1'><p>" + listdata[i][13] + "</p><div class='desp1'>"+defaultHelpText+"</div></div></td>" +
                 "<td class='gvgskill'><div class='tooltip1' id='tooltip1'><p>" + listdata[i][16] + "</p><div class='desp1'>" +defaultHelpText+"</div></div></td>" +
                 "<td class='gvgsupport' style='display:none;'><div class='tooltip1' id='tooltip1'><p>" + listdata[i][18] + "</p><div class='desp1'>"+defaultHelpText+"</div></div></td>" +
-                "<td class='limitbreak' style='display:none;'>" + listdata[i][30] + "</td>"+
+                "<td class='limitbreak' style='display:none;'><div class='tooltip1' id='tooltip1'><p>" + listdata[i][30] + "</p><div class='desp1'>"+defaultHelpText+"</div></div></td>"+
                 "<td class='rate' style='display:none;'>" + listdata[i][35] + "</td>"+
                 "<td class='adddate' style='display:none;'>" + listdata[i][38] +":"+ listdata[i][39] + "</td>";
                 
@@ -588,12 +593,18 @@ function setToolTipText() {
 			</tr>
 		</tbody></table>
 		<ul class="nav">
-			<li>
-				メニュー
+			<li>メニュー
+				<ul style="">
+					<li>武器検索Top◁</li>
+					<li><span onclick="location.href='https://weaponssearch.sinoalice.tools/rate/';">┗倍率検索</span></li>
+					<li>----</li>
+					<li><span onclick="location.href='https://www.sinoalice.tools/';">技術部Topへ</span></li>
+				</ul>
+			</li>
+			<li>ヘルプ
 				<ul style="">
 					<li><label for="trigger" class="open_btn">ヘルプ</label></li>
 					<li><label for="trigger2" class="open_btn2">Copyright</label></li>
-					<li><span onclick="location.href='https://www.sinoalice.tools/';">技術部Topへ</span></li>
 				</ul>
 			</li>
 		</ul>
@@ -645,11 +656,13 @@ function setToolTipText() {
   <input type="checkbox" id="typeCell2" /><label for="typeCell2">魔書</label>
   <input type="checkbox" id="typeCell3" /><label for="typeCell3">魔具</label>
   <input type="checkbox" id="typeCell4" /><label for="typeCell4">祈祷</label>
+  <input type="checkbox" id="typeCombo" /><label for="typeCombo">コンボ</label>
   <br><br><br>
   <input type="checkbox" id="typeCell5" /><label for="typeCell5">刀剣</label>
   <input type="checkbox" id="typeCell6" /><label for="typeCell6">打撃</label>
   <input type="checkbox" id="typeCell7" /><label for="typeCell7">射出</label>
   <input type="checkbox" id="typeCell8" /><label for="typeCell8">長柄</label>
+  <input type="checkbox" id="typeSupport" /><label for="typeSupport">勇猛支援</label>
   <br><br><br>
   <label>▼絞込(属性)</label><label style="margin-left:40px;">▼検索</label><label style="margin-left:45px;">▼更新日</label>
   <br><br><br>
@@ -778,7 +791,7 @@ function setToolTipText() {
 <div class="footer">
 	<table class="footer_table">
 		<tr>
-			<td style="text-align: left;">LastUpdated:2020/05/11</td>
+			<td style="text-align: left;">LastUpdated:2020/05/13</td>
 			<td style="text-align: right;">CreatedBy&nbsp;*@nanaike47</td>
 		</tr>
 	</table>
